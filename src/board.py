@@ -74,11 +74,14 @@ class Sudoku_Sq(Annealer):
         indices = [i for i in block_indices(block) if self.problem[i] == 0]
         m, n = random.sample(indices, 2)
         self.state[m], self.state[n] = self.state[n], self.state[m]
-    def energy(self):
+"""I slightly modified this function to take as a parameter 'result,' to store the returned result when we are running this method with parallel processes."""
+    def energy(self, result=None):
         """calculate the number of violations: assume all rows are OK"""
         column_score = lambda n: -len(set(self.state[coord(i, n)] for i in range(9)))
         row_score = lambda n: -len(set(self.state[coord(n, i)] for i in range(9)))
         score = sum(column_score(n)+row_score(n) for n in range(9))
         if score == -162:
             self.user_exit = True # early quit, we found a solution
+        if isinstance(result, tuple):
+            result[0][result[1]].append(score)	# Sets the second index (score) of some entry in our dictionary, which is filled with state-score pairs
         return score
