@@ -45,7 +45,7 @@ def lookahead_anneal(solver):
         tree = choose_tree(lamed)
         proc_list = []
         for i in range(M):
-            return_dict[i] = (False, None)
+            return_dict[i] = None
             p = Process(target=transition, args=(i, tree, return_dict, lamed))
             proc_list.append(p)
             p.start()
