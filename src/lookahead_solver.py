@@ -19,10 +19,10 @@ def compute_avg(returns):
     for key in keys:
         if key != 0:
             total += returns[key][1]
-    return total/M
+    return float(total)/M
 
 def compute_lamed(curr_score, prior_avg):
-    return exp((root_accept_energy - curr_child_energy)/(T * Boltzmann)) 
+    return exp(-(prior_avg - curr_score)/(T * Boltzmann)) 
 
 def choose_tree(prob):
     if prob == 1:	# Special case when we know to transition every time
@@ -49,7 +49,9 @@ def fill_states(i, tree, returns, prob, parent_solver):
         parent_copy = deepcopy(parent_solver)
         parent_copy.move()
         returns[i] = []
-        returns[i].append(parent_copy.state)
+        returns[i].append(parent_copy)
+        print(len(returns[i]))
+        
     proc_list = []
     children = tree[i]
     for child_index in children:
@@ -66,7 +68,7 @@ def evaluate_tree(returns):
     in which we we will end up, by the end of this round.
     """
     proc_list = []
-    for i in range(M):
+    for i in range(1, M + 1):
         p = Process(target=returns[i][0].energy, args=((returns, i)))
         proc_list.append(p)
         p.start()
@@ -90,36 +92,37 @@ def choose_state(root_index, tree, returns, prob):
         if chose_child:
             break
         curr_child_energy = returns[child_index][1]
-        if ((-1 * root_accept_energy) >= (-1 * curr_child_energy)) or
-           (prob > uniform()):
+        if ((-1 * root_accept_energy) >= (-1 * curr_child_energy)) or (prob > uniform()):
             desc_accept_state, desc_accept_energy = choose_state(child_index, tree, returns, prob)
             chose_child = True
     if chose_child:
-        return ()
+        return (desc_accept_state, desc_accept_energy)
     return (root_accept_state, root_accept_energy)
 
 def lookahead_anneal(solver): 
     prior_avg = solver.energy()
     curr_score = prior_avg
-    manager = Manager()
+    # manager = Manager()
     return_dict = None
-    while solver.user_exit == False:
-	"""This will act as our result holder for each round, i.e., 
-	it will hold the tree's nodes' states, and their respective 
-	energy levels."""
+    while curr_score != -162:
+        """This will act as our result holder for each round, i.e., 
+        it will hold the tree's nodes' states, and their respective 
+        energy levels."""
         if return_dict == None:
-            return_dict = manager.dict()
+      #      return_dict = manager.dict()
+            return_dict = {}
         else:
             prior_avg = compute_avg(return_dict)
         return_dict.clear()
-        return_dict[0] = [solver.state, curr_score]
+        return_dict[0] = [solver, curr_score]
         lamed = compute_lamed(curr_score, prior_avg)
         tree_dict = choose_tree(lamed)
         fill_states(0, tree_dict, return_dict, lamed, solver)
-	evaluate_tree(return_dict)
-	solver.state, curr_score = choose_state(0, tree, return_dict, lamed)
+        evaluate_tree(return_dict)
+        solver.state, curr_score = choose_state(0, tree, return_dict, lamed)
         T = T*alef 
 
 if __name__ == '__main__':
-    solver = board.Sudoku_Sq(PROBLEM)
+    solver = board.Sudoku_Sq(board.PROBLEM)
     lookahead_anneal(solver)
+    board.print_sudoku(solver.state)

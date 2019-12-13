@@ -1,7 +1,7 @@
 import copy
 import random
 import numpy as np
-from simanneal import Annealer
+# from simanneal import Annealer
 
 # from https://neos-guide.org/content/sudoku
 _ = 0
@@ -63,18 +63,21 @@ def initial_solution(problem):
             solution[index] = value
     return solution
 
-class Sudoku_Sq(Annealer):
+class Sudoku_Sq():
     def __init__(self, problem):
         self.problem = problem
-        state = initial_solution(problem)
-        super().__init__(state)
+        self.state = initial_solution(problem)
+       # super().__init__(state)
     def move(self):
         """randomly swap two cells in a random square"""
         block = random.randrange(9)
         indices = [i for i in block_indices(block) if self.problem[i] == 0]
         m, n = random.sample(indices, 2)
         self.state[m], self.state[n] = self.state[n], self.state[m]
-"""I slightly modified this function to take as a parameter 'result,' to store the returned result when we are running this method with parallel processes."""
+
+        """I slightly modified this function to take as a parameter 
+        'result,' to store the returned result when we are running 
+        this method with parallel processes."""
     def energy(self, result=None):
         """calculate the number of violations: assume all rows are OK"""
         column_score = lambda n: -len(set(self.state[coord(i, n)] for i in range(9)))
