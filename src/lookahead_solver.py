@@ -2,7 +2,7 @@ import board
 from copy import deepcopy
 from math import exp
 from numpy.random import uniform
-from multiprocessing import Process, Manager
+import multiprocessing as mp
 from scipy.constants import Boltzmann
 
 T = 10000
@@ -13,29 +13,32 @@ Tree_List = [{0:(1, 2, 3, 4, 5, 6, 7), 1:(), 2:(), 3:(), 4:(), 5:(), 6:(), 7:()}
 
 Prob_Range_List = [(0, 0.23), (0.23, 0.28), (0.28,0.32), (0.32, 0.44), (0.44, 0.57), (0.57, 0.69), (0.69, 0.73), (0.73, 0.78), (0.78, 1)]
 
-def compute_avg(returns):
+def compute_avg(energy):
     total = 0
-    keys = returns.keys()
+    keys = energy.keys()
     for key in keys:
         if key != 0:
-            total += returns[key][1]
+            total += energy[key]
     return float(total)/M
 
 def compute_lamed(curr_score, prior_avg):
-    return exp(-(prior_avg - curr_score)/(T * Boltzmann)) 
+    return exp(-(prior_avg - curr_score)/(T))
+    # return exp(-(prior_avg - curr_score)/(T * Boltzmann)) 
 
 def choose_tree(prob):
     if prob == 1:	# Special case when we know to transition every time
         return Tree_List[M - 1]
 
     i = 0
+    print(prob)
     for tup in Prob_Range_List:
         if (prob >= tup[0]) and (prob < tup[1]):
             break
-        i += 1 
+        i += 1
+    print(i) 
     return Tree_List[i]
 
-def fill_states(i, tree, returns, prob, parent_solver):
+def fill_states(i, tree, states, prob, parent_solver):
     """
     Computes each our state tree's nodes board states, from which
     we will then derive their respective energy levels using 
@@ -48,20 +51,18 @@ def fill_states(i, tree, returns, prob, parent_solver):
     if i != 0:	# We only modify the returns dict for non-root nodes in our tree
         parent_copy = deepcopy(parent_solver)
         parent_copy.move()
-        returns[i] = []
-        returns[i].append(parent_copy)
-        print(len(returns[i]))
+        states[i] = parent_copy
         
     proc_list = []
     children = tree[i]
     for child_index in children:
-        p = Process(target=fill_states, args=(child_index, tree, returns, prob, parent_copy))
+        p = mp.Process(target=fill_states, args=[child_index, tree, states, prob, parent_copy])
         proc_list.append(p)
         p.start()
     for proc in proc_list:
         proc.join()
     
-def evaluate_tree(returns):
+def evaluate_tree(states, energy):
     """
     In this round of the SA, we compute the energy level of each 
     of our tree's nodes, which we will use in deciding the state
@@ -69,13 +70,13 @@ def evaluate_tree(returns):
     """
     proc_list = []
     for i in range(1, M + 1):
-        p = Process(target=returns[i][0].energy, args=((returns, i)))
+        p = mp.Process(target=states[i].energy, args=[(energy, i)])
         proc_list.append(p)
         p.start()
     for proc in proc_list:
         proc.join()
         
-def choose_state(root_index, tree, returns, prob):
+def choose_state(root_index, tree, states, energy, prob):
     """
     Assuming the tree rooted at root_index holds this
     round's final accept state (by induction), we keep
@@ -84,42 +85,46 @@ def choose_state(root_index, tree, returns, prob):
     """
     children = tree[root_index]
     chose_child = False
-    root_accept_state = returns[root_index][0]
-    root_accept_energy = returns[root_index][1]
+    root_accept_state = states[root_index].state
+    root_accept_energy = energy[root_index]
     desc_accept_state = None
     desc_accept_energy = None
     for child_index in children:
         if chose_child:
             break
-        curr_child_energy = returns[child_index][1]
+        curr_child_energy = energy[child_index]
         if ((-1 * root_accept_energy) >= (-1 * curr_child_energy)) or (prob > uniform()):
-            desc_accept_state, desc_accept_energy = choose_state(child_index, tree, returns, prob)
+            desc_accept_state, desc_accept_energy = choose_state(child_index, tree, states, energy, prob)
             chose_child = True
     if chose_child:
         return (desc_accept_state, desc_accept_energy)
     return (root_accept_state, root_accept_energy)
 
-def lookahead_anneal(solver): 
+def lookahead_anneal(solver):
+    global T
     prior_avg = solver.energy()
     curr_score = prior_avg
-    # manager = Manager()
-    return_dict = None
+    manager = mp.Manager()
+    states_dict = None
+    energy_dict = None
     while curr_score != -162:
         """This will act as our result holder for each round, i.e., 
         it will hold the tree's nodes' states, and their respective 
         energy levels."""
-        if return_dict == None:
-      #      return_dict = manager.dict()
-            return_dict = {}
+        if states_dict == None:
+            states_dict = manager.dict()
+            energy_dict = manager.dict()
         else:
-            prior_avg = compute_avg(return_dict)
-        return_dict.clear()
-        return_dict[0] = [solver, curr_score]
+            prior_avg = compute_avg(energy_dict)
+        states_dict.clear()
+        energy_dict.clear()
+        states_dict[0] = solver
+        energy_dict[0] = curr_score
         lamed = compute_lamed(curr_score, prior_avg)
         tree_dict = choose_tree(lamed)
-        fill_states(0, tree_dict, return_dict, lamed, solver)
-        evaluate_tree(return_dict)
-        solver.state, curr_score = choose_state(0, tree, return_dict, lamed)
+        fill_states(0, tree_dict, states_dict, lamed, solver)
+        evaluate_tree(states_dict, energy_dict)
+        solver.state, curr_score = choose_state(0, tree_dict, states_dict, energy_dict, lamed)
         T = T*alef 
 
 if __name__ == '__main__':

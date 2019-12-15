@@ -74,7 +74,6 @@ class Sudoku_Sq():
         indices = [i for i in block_indices(block) if self.problem[i] == 0]
         m, n = random.sample(indices, 2)
         self.state[m], self.state[n] = self.state[n], self.state[m]
-
         """I slightly modified this function to take as a parameter 
         'result,' to store the returned result when we are running 
         this method with parallel processes."""
@@ -86,5 +85,5 @@ class Sudoku_Sq():
         if score == -162:
             self.user_exit = True # early quit, we found a solution
         if isinstance(result, tuple):
-            result[0][result[1]].append(score)	# Sets the second index (score) of some entry in our dictionary, which is filled with state-score pairs
+            result[0][result[1]] = score	# Sets the second index (score) of some entry in our dictionary, which is filled with state-score pairs
         return score
