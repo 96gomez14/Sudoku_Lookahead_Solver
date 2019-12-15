@@ -1,6 +1,6 @@
 import board
+import decimal
 from copy import deepcopy
-from math import exp
 from numpy.random import uniform
 import multiprocessing as mp
 from scipy.constants import Boltzmann
@@ -19,23 +19,21 @@ def compute_avg(energy):
     for key in keys:
         if key != 0:
             total += energy[key]
-    return float(total)/M
+    return total/M
 
 def compute_lamed(curr_score, prior_avg):
-    return exp(-(prior_avg - curr_score)/(T))
+    return decimal.Decimal(-(prior_avg - curr_score)/(T)).exp()
     # return exp(-(prior_avg - curr_score)/(T * Boltzmann)) 
 
 def choose_tree(prob):
-    if prob == 1:	# Special case when we know to transition every time
+    if prob >= 1:	# Special case when we know to transition every time
         return Tree_List[M - 1]
 
     i = 0
-    print(prob)
     for tup in Prob_Range_List:
         if (prob >= tup[0]) and (prob < tup[1]):
             break
         i += 1
-    print(i) 
     return Tree_List[i]
 
 def fill_states(i, tree, states, prob, parent_solver):
@@ -125,7 +123,8 @@ def lookahead_anneal(solver):
         fill_states(0, tree_dict, states_dict, lamed, solver)
         evaluate_tree(states_dict, energy_dict)
         solver.state, curr_score = choose_state(0, tree_dict, states_dict, energy_dict, lamed)
-        T = T*alef 
+        T = T*alef
+        print(curr_score)
 
 if __name__ == '__main__':
     solver = board.Sudoku_Sq(board.PROBLEM)
