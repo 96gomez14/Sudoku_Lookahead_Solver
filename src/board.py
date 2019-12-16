@@ -1,7 +1,7 @@
 import copy
 import random
 import numpy as np
-# from simanneal import Annealer
+from simanneal.simanneal.anneal import Annealer
 
 # from https://neos-guide.org/content/sudoku
 _ = 0
@@ -78,11 +78,11 @@ def initial_solution(problem):
             solution[index] = value
     return solution
 
-class Sudoku_Sq():
+class Sudoku_Sq(Annealer):
     def __init__(self, problem):
         self.problem = problem
-        self.state = initial_solution(problem)
-       # super().__init__(state)
+        state = initial_solution(problem)
+        super().__init__(initial_state = state)
     def move(self):
         """randomly swap two cells in a random square"""
         block = random.randrange(9)
